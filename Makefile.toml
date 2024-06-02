@@ -1,0 +1,112 @@
+[tasks.print_help]
+description = "Prints help information"
+script = [
+'''
+echo "
+----------------------------------------
+Usage: cargo make [TASK]
+Available Tasks:
+  cpp_wrapper - Build the C++ wrapper.
+  java_wrapper - Build the Java wrapper.
+  python_wrapper - Build the Python wrapper.
+  all_wrappers - Build all wrappers.
+You can pass additional arguments to each build task by appending them after the task name.
+For example: cargo make cpp_wrapper --release
+----------------------------------------"
+'''
+]
+
+[tasks.default]
+alias = "print_help"
+
+[tasks.cpp_wrapper]
+description = "Build C++ wrapper"
+script = '''
+cargo build --features "cpp_wrapper" ${@}
+OUT_PATH=$(cat ./target/out_path.txt)
+
+EXECUTABLE_DIR=$OUT_PATH
+# Loop to find libswordfish_com.so and copy it to TARGET_DIR
+while true; do
+  # Check if libswordfish_com.so exists in the current EXECUTABLE_DIR
+  if [ -f "$EXECUTABLE_DIR/libswordfish_com.so" ]; then
+    echo "Found libswordfish_com.so in $EXECUTABLE_DIR"
+    parent_dir=$(dirname "$EXECUTABLE_DIR")
+    TARGET_DIR=./wrappers/cpp/$(basename "$parent_dir")
+    mkdir -p "$TARGET_DIR"
+    cp "$EXECUTABLE_DIR/libswordfish_com.so" "$TARGET_DIR"
+    echo "libswordfish_com.so copied to $TARGET_DIR"
+    exit 0
+  else
+    # Move to the parent directory
+    EXECUTABLE_DIR=$(dirname "$EXECUTABLE_DIR")
+    # If we've reached the root directory without finding the file, exit the loop
+    if [ "$EXECUTABLE_DIR" = $CARGO_MAKE_CRATE_TARGET_DIRECTORY ]; then
+      echo "Could not find libswordfish_com.so in any parent directory."
+      exit 1
+    fi
+  fi
+done
+
+rm -rf ./target/out_path.txt
+'''
+
+[tasks.java_wrapper]
+description = "Build the java wrapper"
+script = '''
+cargo build --features "java_wrapper" ${@}
+OUT_PATH=$(cat ./target/out_path.txt)
+
+EXECUTABLE_DIR=$OUT_PATH
+# Loop to find libswordfish_com.so and copy it to TARGET_DIR
+while true; do
+  # Check if libswordfish_com.so exists in the current EXECUTABLE_DIR
+  if [ -f "$EXECUTABLE_DIR/libswordfish_com.so" ]; then
+    echo "Found libswordfish_com.so in $EXECUTABLE_DIR"
+    parent_dir=$(dirname "$EXECUTABLE_DIR")
+    TARGET_DIR=./wrappers/java/$(basename "$parent_dir")
+    mkdir -p "$TARGET_DIR"
+    cp "$EXECUTABLE_DIR/libswordfish_com.so" "$TARGET_DIR"
+    echo "libswordfish_com.so copied to $TARGET_DIR"
+    exit 0
+  else
+    # Move to the parent directory
+    EXECUTABLE_DIR=$(dirname "$EXECUTABLE_DIR")
+    # If we've reached the root directory without finding the file, exit the loop
+    if [ "$EXECUTABLE_DIR" = $CARGO_MAKE_CRATE_TARGET_DIRECTORY ]; then
+      echo "Could not find libswordfish_com.so in any parent directory."
+      exit 1
+    fi
+  fi
+done
+
+rm -rf ./target/out_path.txt
+'''
+
+[tasks.python_wrapper]
+description = "Build the python wrapper"
+script = '''
+maturin build --features "python_wrapper" ${@}
+
+TARGET=$(cat ./target/target.txt)
+
+TARGET_DIR="./wrappers/python/$TARGET"
+WHEEL_DIR="./target/wheels"
+
+#take the last created wheel
+WHEEL_FILE=$(ls -t $WHEEL_DIR | head -n 1)
+echo "Copying $WHEEL_FILE to $TARGET_DIR"
+mkdir -p "$TARGET_DIR"
+cp "$WHEEL_DIR/$WHEEL_FILE" "$TARGET_DIR/$WHEEL_FILE"
+
+#unlike the other wrappers, python uses a wheel file, 
+#that must have a specific name, decided by maturin on build time
+#so we cant create a static link to the wheel file
+ln -sf "../$TARGET_DIR/$WHEEL_FILE" "./python_example"
+
+rm -rf ./target/target.txt
+'''
+
+[tasks.all_wrappers]
+description = "Build all wrappers"
+dependencies = ["cpp_wrapper", "java_wrapper", "python_wrapper"]

@@ -1,0 +1,33 @@
+[package]
+name = "swordfish_com-rs"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[lib]
+name = "swordfish_com"
+crate-type = ["cdylib","rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serialport = "4.3.0"
+anyhow = "1.0.81"
+log = "0.4.21"
+phf = { version = "0.11", features = ["macros"] }
+inline_colorization = "0.1.0"
+#optional
+pyo3 = { version = "0.21.2", features = ["extension-module"], optional = true}
+simple_logger = {version = "5.0.0", optional = true}
+
+[build-dependencies]
+flapigen = {version = "0.6.1", optional = true}
+bindgen = { version = "0.69.4", default-features = false, features = ["logging", "runtime", "which-rustfmt"], optional = true}
+
+[features]
+default = ["test"]
+test = ["simple_logger"]
+cpp_wrapper = ["flapigen","bindgen"]
+java_wrapper = ["flapigen","bindgen"]
+python_wrapper = ["pyo3"]
+all_wrappers = ["cpp_wrapper","java_wrapper","python_wrapper"]
